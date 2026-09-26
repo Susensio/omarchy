@@ -30,7 +30,7 @@ The same layouts are available for Herdr as `hdl`, `hds`, `hdlm`, and `hsl`.
 
 ## Rsync watchers
 
-- `rsw [source] [destination]`: Start a background watcher that rsyncs source to destination whenever anything changes. The destination can be a remote host, like `rsw ~/Work/app nyc-dev:Work/app`.
+- `rsw [source] [destination]`: Start a background watcher that rsyncs source to destination whenever anything changes. The destination can be a remote host, like `rsw ~/Projects/app nyc-dev:Projects/app`.
 - `lsw`: List all active watchers.
 - `dsw`: Stop all active watchers.
 
