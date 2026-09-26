@@ -32,8 +32,12 @@ while (($#)); do
 done
 
 # Agents refuse to remember trust for $HOME, so launches from the keybinding or
-# menu start in the work directory instead of re-asking on every session.
-[[ $PWD == "$HOME" && -d $HOME/Work ]] && cd "$HOME/Work"
+# menu start in the projects directory instead of re-asking on every session.
+# xdg-user-dirs points a key whose directory went missing back at "$HOME/".
+[[ -f ~/.config/user-dirs.dirs ]] && source ~/.config/user-dirs.dirs
+projects_dir=${XDG_PROJECTS_DIR:-$HOME/Projects}
+projects_dir=${projects_dir%/}
+[[ $PWD == "$HOME" && $projects_dir != "$HOME" && -d $projects_dir ]] && cd "$projects_dir"
 
 agent=$(omarchy-default-agent)
 

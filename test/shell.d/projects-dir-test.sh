@@ -13,6 +13,48 @@ new_home() {
   printf '%s\n' "$home"
 }
 
+# omarchy-agent starts in the projects directory when launched from $HOME
+mock_bin="$test_tmp/bin"
+mkdir -p "$mock_bin"
+cat >"$mock_bin/omarchy-default-agent" <<'SH'
+#!/bin/bash
+echo pi
+SH
+cat >"$mock_bin/pi" <<'SH'
+#!/bin/bash
+pwd >"$OMARCHY_TEST_AGENT_CWD"
+SH
+chmod +x "$mock_bin/omarchy-default-agent" "$mock_bin/pi"
+
+agent_cwd() {
+  local home=$1
+  rm -f "$test_tmp/agent-cwd"
+  (
+    cd "$home"
+    env -u XDG_PROJECTS_DIR HOME="$home" PATH="$mock_bin:$ROOT/bin:$PATH" \
+      OMARCHY_TEST_AGENT_CWD="$test_tmp/agent-cwd" omarchy-agent --inline
+  )
+  cat "$test_tmp/agent-cwd"
+}
+
+home=$(new_home agent-work)
+mkdir -p "$home/Work"
+printf 'XDG_PROJECTS_DIR="$HOME/Work"\n' >"$home/.config/user-dirs.dirs"
+[[ $(agent_cwd "$home") == "$home/Work" ]] || fail "agent starts in the configured projects directory"
+
+home=$(new_home agent-default)
+mkdir -p "$home/Projects"
+[[ $(agent_cwd "$home") == "$home/Projects" ]] || fail "agent starts in ~/Projects when no key is set"
+
+home=$(new_home agent-missing)
+printf 'XDG_PROJECTS_DIR="$HOME/Gone"\n' >"$home/.config/user-dirs.dirs"
+[[ $(agent_cwd "$home") == "$home" ]] || fail "agent stays in \$HOME when the projects directory is missing"
+
+home=$(new_home agent-reset)
+printf 'XDG_PROJECTS_DIR="$HOME/"\n' >"$home/.config/user-dirs.dirs"
+[[ $(agent_cwd "$home") == "$home" ]] || fail "agent stays in \$HOME when the key was reset to it"
+pass "agent launcher starts in the projects directory from \$HOME"
+
 # The migration keeps ~/Work as the projects directory on existing installs
 require_command xdg-user-dirs-update
 
