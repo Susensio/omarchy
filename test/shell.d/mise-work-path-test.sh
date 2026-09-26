@@ -95,8 +95,8 @@ env \
   PATH="$test_dir/bin:/usr/bin" \
   bash -euo pipefail -c 'source "$1"' bash "$ROOT/install/user/mise-work.sh"
 
-[[ -d $install_home/Work/tries ]] || fail "installer creates the work and tries directories"
-[[ ! -e $install_home/Work/.mise.toml ]] || fail "installer does not create a trusted Work Mise config"
+[[ -d $install_home/Projects/tries ]] || fail "installer creates the projects and tries directories"
+[[ ! -e $install_home/Projects/.mise.toml ]] || fail "installer does not create a trusted projects Mise config"
 [[ $(<"$install_log") == "use -g node@latest" ]] || fail "installer only invokes Mise for the global Node setup"
 pass "new installs do not add project bin directories to PATH"
 

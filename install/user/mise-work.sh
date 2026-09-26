@@ -1,6 +1,6 @@
-# Setup default work directory (and tries)
-mkdir -p "$HOME/Work"
-mkdir -p "$HOME/Work/tries"
+# Setup the projects directory (and tries)
+[[ -f ~/.config/user-dirs.dirs ]] && source ~/.config/user-dirs.dirs
+mkdir -p "${XDG_PROJECTS_DIR:-$HOME/Projects}/tries"
 
 # Offline installs unpack the Node tarball bundled by the ISO: from
 # /opt/packages in the ISO chroot, or from the copy staged in provisioning state when
