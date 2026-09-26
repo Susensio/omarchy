@@ -220,3 +220,31 @@ for action in "${expected_alternatives[@]}"; do
     fail "every action named as having an alternative is bound twice" "$action"
 done
 pass "every action named as having an alternative is bound twice"
+
+# A submap binding fires only inside its mode, so its row leads with the chord
+# that enters the mode and sits right under that chord's own row.
+mode_bind() {
+  printf 'bind\n\tmodmask: %s\n\tsubmap: %s\n\tkey: %s\n\tkeycode: 0\n\tcatchall: false\n\tdescription: %s\n\tdispatcher: __lua\n\targ: \n' "$1" "$2" "$3" "$4"
+}
+
+stub_hyprctl <<BINDS
+$(mode_bind 1 window "SHIFT + H" "Swap left")
+$(lua_bind 64 "SUPER + F" "Full screen")
+$(mode_bind 0 window "H" "Shrink width")
+$(printf 'bind\n\tmodmask: 64\n\tsubmap: \n\tkey: P\n\tkeycode: 0\n\tcatchall: false\n\tdescription: Window mode\n\tdispatcher: submap\n\targ: window\n')
+$(mode_bind 0 unbound "ESCAPE" "Leave unbound mode")
+BINDS
+
+rendered=$(keybindings)
+grep -q '^SUPER + P > H  *→ Shrink width' <<<"$rendered" &&
+  grep -q '^SUPER + P > SHIFT + H  *→ Swap left' <<<"$rendered" ||
+  fail "a submap binding leads with the chord that enters its mode" "$rendered"
+pass "a submap binding leads with the chord that enters its mode"
+
+grep -A2 '^SUPER + P  *→ Window mode' <<<"$rendered" | tail -n +2 | grep -qv '^SUPER + P > ' &&
+  fail "the bindings of a mode sort right under the chord that enters it" "$rendered"
+pass "the bindings of a mode sort right under the chord that enters it"
+
+grep -q '^unbound > ESCAPE  *→ Leave unbound mode' <<<"$rendered" ||
+  fail "a mode with no known entry chord is named instead" "$rendered"
+pass "a mode with no known entry chord is named instead"

@@ -8,6 +8,7 @@
 declare -A LUA_BIND_KEY_MAP
 declare -A LUA_BIND_DISPATCHER_MAP
 declare -A LUA_BIND_ARG_MAP
+declare -A SUBMAP_ENTRY_MAP
 
 # Hyprland reports XKB keycodes for code: bindings. Resolve them to symbols
 # via the compiled keymap, with a small fallback for common keys so the menu
@@ -269,8 +270,36 @@ modmask_to_text() {
 # - Remove standard Omarchy bin path prefix
 # - Map numeric modifier key mask to a textual rendition
 # - Output comma-separated values that the parser can understand
+# Map each submap to the chord that enters it, so its bindings can be listed
+# under that chord. Lua configs report the entry bind as __lua, so read it from
+# the Lua bind cache; hyprland.conf reports dispatcher submap directly.
+build_submap_entry_map() {
+  local cache_key name modmask key modifiers
+
+  add_submap_entry() {
+    [[ -z $1 || $1 == "reset" || -z $3 ]] && return
+    modifiers=$(modmask_to_text "$2")
+    SUBMAP_ENTRY_MAP["$1"]="${modifiers:+${modifiers// / + } + }${3##* + }"
+  }
+
+  for cache_key in "${!LUA_BIND_ARG_MAP[@]}"; do
+    [[ ${LUA_BIND_ARG_MAP["$cache_key"]} =~ ^hl\.dsp\.submap\(\"([^\"]+)\"\)$ ]] || continue
+    add_submap_entry "${BASH_REMATCH[1]}" "${cache_key%%,*}" "${cache_key##*,}"
+  done
+
+  while IFS=$'\x1f' read -r modmask key name; do
+    add_submap_entry "$name" "$modmask" "$key"
+  done < <(
+    hyprctl binds 2>/dev/null | awk '
+      /^bind/ { if (f["dispatcher"] == "submap") printf "%s\x1f%s\x1f%s\n", f["modmask"], f["key"], f["arg"]; delete f; next }
+      match($0, /^\t[a-z]+: /) { f[substr($0, 2, RLENGTH - 3)] = substr($0, RLENGTH + 1) }
+      END { if (f["dispatcher"] == "submap") printf "%s\x1f%s\x1f%s\n", f["modmask"], f["key"], f["arg"] }
+    '
+  )
+}
+
 dynamic_bindings() {
-  local modmask key keycode description dispatcher arg modifiers cache_key
+  local modmask submap key keycode description dispatcher arg modifiers cache_key
 
   # Parse the plain `hyprctl binds` output rather than `hyprctl -j binds`:
   # Hyprland 0.56.0 emits invalid JSON for binds (misaligned fields in
@@ -279,13 +308,13 @@ dynamic_bindings() {
     function emit() {
       if (!seen) return
       seen = 0
-      printf "%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n", f["modmask"], f["key"], f["keycode"], f["description"], f["dispatcher"], f["arg"]
+      printf "%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n", f["modmask"], f["submap"], f["key"], f["keycode"], f["description"], f["dispatcher"], f["arg"]
     }
     /^bind/ { emit(); seen = 1; delete f; next }
     seen && match($0, /^\t[a-z]+: /) { f[substr($0, 2, RLENGTH - 3)] = substr($0, RLENGTH + 1) }
     END { emit() }
   ' |
-    while IFS=$'\x1f' read -r modmask key keycode description dispatcher arg; do
+    while IFS=$'\x1f' read -r modmask submap key keycode description dispatcher arg; do
       # Lua binds report their full display key ("SUPER + code:20"); the
       # modifiers are already carried separately in modmask.
       key="${key##* + }"
@@ -319,6 +348,17 @@ dynamic_bindings() {
       esac
 
       modifiers=$(modmask_to_text "$modmask")
+
+      # A submap binding only fires inside its mode, so lead with the chord that
+      # enters the mode (or its name) rather than listing it as a global shortcut.
+      if [[ -n $submap ]]; then
+        submap="${SUBMAP_ENTRY_MAP["$submap"]:-$submap}"
+        if [[ -n $modifiers ]]; then
+          modifiers="$submap > $modifiers"
+        else
+          key="$submap > $key"
+        fi
+      fi
       arg="${arg//~\/.local\/share\/omarchy\/bin\//}"
 
       printf '%s,%s,%s,%s,%s\n' "$modifiers" "$key" "$description" "$dispatcher" "$arg"
@@ -495,11 +535,26 @@ prioritize_entries() {
     if (match(line, /Tmux keybindings/)) prio = 100
     if (match(line, /Herdr keybindings/)) prio = 101
 
-    # print "priority<TAB>record"
-    printf "%d\t%s\n", prio, $0
+    # A binding inside a mode ("SUPER + P > H") sorts right after the row of
+    # the chord that enters the mode; every other row sorts on itself.
+    chord = line
+    sub(/ *→.*/, "", chord)
+    mode = ""
+    if (split(chord, parts, " > ") > 1) mode = parts[1]
+    else entry_row[chord] = line
+
+    rows[NR] = $0; prios[NR] = prio; modes[NR] = mode; lines[NR] = line
+  }
+  END {
+    for (i = 1; i <= NR; i++) {
+      key = lines[i]
+      if (modes[i] != "" && modes[i] in entry_row) key = entry_row[modes[i]]
+      # print "priority<TAB>sort key<TAB>in mode<TAB>record"
+      printf "%d\t%s\t%d\t%s\n", prios[i], key, modes[i] != "", rows[i]
+    }
   }' |
-  sort -k1,1n -k2,2 |
-  cut -f2-
+  sort -t $'\t' -k1,1n -k2,2 -k3,3n -k4 |
+  cut -f4-
 }
 
 # Drop repeated records while keeping the order Hyprland reported them in, so
@@ -512,6 +567,7 @@ output_binding_records_uncached() {
   local dynamic
 
   build_lua_bind_cache
+  build_submap_entry_map
   dynamic=$(dynamic_bindings)
 
   {
@@ -530,7 +586,7 @@ output_binding_records_uncached() {
 
 keybindings_cache_key() {
   {
-    printf 'v13\n'
+    printf 'v14\n'
     hyprctl devices 2>/dev/null | grep -F 'active keymap:'
     hyprctl binds 2>/dev/null
   } | sha256sum | awk '{ print $1 }'
