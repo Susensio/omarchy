@@ -108,6 +108,15 @@ xdg-user-dirs-update --set TEMPLATES "$HOME"
 xdg-user-dirs-update --set PUBLICSHARE "$HOME"
 xdg-user-dirs-update --set DESKTOP "$HOME"
 rmdir ~/Templates ~/Public ~/Desktop 2>/dev/null || true
+
+# A --force rerun keeps a projects dir the user or a migration already chose.
+[[ -f ~/.config/user-dirs.dirs ]] && source ~/.config/user-dirs.dirs
+if [[ -z ${XDG_PROJECTS_DIR:-} || ${XDG_PROJECTS_DIR%/} == "$HOME" ]]; then
+  xdg-user-dirs-update --set PROJECTS "$HOME/Projects"
+  XDG_PROJECTS_DIR="$HOME/Projects"
+fi
+mkdir -p "$XDG_PROJECTS_DIR"
+
 touch ~/.config/gtk-3.0/bookmarks
 for dir in Downloads Projects Pictures Videos; do
   bookmark="file://$HOME/$dir $dir"
