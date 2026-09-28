@@ -59,12 +59,15 @@ Item {
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
+        // A probe that started before a toggle reads the old temperature;
+        // applyProcess refreshes once the toggle has landed.
+        if (applyProcess.running) return
         root.temperature = NightlightModel.temperatureFromOutput(text)
         root.stateLoaded = true
       }
     }
     onExited: function(exitCode) {
-      if (exitCode !== 0) {
+      if (exitCode !== 0 && !applyProcess.running) {
         root.temperature = null
         root.stateLoaded = true
       }

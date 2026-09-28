@@ -5,6 +5,7 @@ set -euo pipefail
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
 
 run_node_test <<'JS'
+const fs = require('fs')
 const nightlight = requireFromRoot('shell/plugins/services/nightlight/NightlightModel.js')
 
 assertEqual(nightlight.temperatureFromOutput('4000\n'), 4000, 'nightlight parses probe temperature')
@@ -15,6 +16,14 @@ assertEqual(nightlight.isNightlight(6000), false, 'nightlight reports identity t
 assertEqual(nightlight.isNightlight(null), false, 'nightlight reports unknown temperature as disabled')
 assertEqual(nightlight.msUntilNextMinuteProbe(new Date(2026, 0, 1, 20, 0, 0, 0)), 61000, 'nightlight probes a second past the next minute')
 assertEqual(nightlight.msUntilNextMinuteProbe(new Date(2026, 0, 1, 19, 59, 59, 500)), 1500, 'nightlight probes just after an imminent minute')
+
+const serviceSource = fs.readFileSync(root + '/shell/plugins/services/nightlight/Service.qml', 'utf8')
+const minuteProbe = serviceSource.match(/id: minuteProbe[\s\S]*?onTriggered: \{[\s\S]*?\n {4}\}/)
+assert(minuteProbe, 'nightlight has the minute probe timer')
+assert(/if \(!applyProcess\.running\) root\.refresh\(\)/.test(minuteProbe[0]), 'nightlight skips the minute probe while a toggle is being applied')
+assert(/interval = NightlightModel\.msUntilNextMinuteProbe\(new Date\(\)\)\s*start\(\)/.test(minuteProbe[0]), 'nightlight re-arms the minute probe for the next minute')
+assert(/onStreamFinished: \{[\s\S]*?if \(applyProcess\.running\) return/.test(serviceSource), 'nightlight ignores a probe that lands while a toggle is being applied')
+assert(/exitCode !== 0 && !applyProcess\.running/.test(serviceSource), 'nightlight ignores a failed probe while a toggle is being applied')
 JS
 
 TMPDIR=$(mktemp -d)
