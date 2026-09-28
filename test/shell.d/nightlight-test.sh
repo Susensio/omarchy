@@ -13,6 +13,8 @@ assertEqual(nightlight.isNightlight(4000), true, 'nightlight reports warm temper
 assertEqual(nightlight.isNightlight(5999), true, 'nightlight reports warmer-than-identity values as enabled')
 assertEqual(nightlight.isNightlight(6000), false, 'nightlight reports identity temperature as disabled')
 assertEqual(nightlight.isNightlight(null), false, 'nightlight reports unknown temperature as disabled')
+assertEqual(nightlight.msUntilNextMinuteProbe(new Date(2026, 0, 1, 20, 0, 0, 0)), 61000, 'nightlight probes a second past the next minute')
+assertEqual(nightlight.msUntilNextMinuteProbe(new Date(2026, 0, 1, 19, 59, 59, 500)), 1500, 'nightlight probes just after an imminent minute')
 JS
 
 TMPDIR=$(mktemp -d)

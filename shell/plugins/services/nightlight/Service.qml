@@ -71,6 +71,19 @@ Item {
     }
   }
 
+  // hyprsunset switches its schedule profiles without telling anyone, and
+  // always on a minute boundary, so probe again just after each one.
+  Timer {
+    id: minuteProbe
+    running: true
+    interval: NightlightModel.msUntilNextMinuteProbe(new Date())
+    onTriggered: {
+      if (!applyProcess.running) root.refresh()
+      interval = NightlightModel.msUntilNextMinuteProbe(new Date())
+      start()
+    }
+  }
+
   Process {
     id: applyProcess
     onExited: function() {
