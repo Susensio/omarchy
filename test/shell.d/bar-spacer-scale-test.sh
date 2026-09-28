@@ -13,6 +13,7 @@ fi
 
 test_tmp=$(mktemp -d)
 trap 'rm -rf "$test_tmp"' EXIT
+mkdir -p "$test_tmp/home"
 
 ln -s "$ROOT/shell/Ui" "$test_tmp/Ui"
 ln -s "$ROOT/shell/Commons" "$test_tmp/Commons"
@@ -91,7 +92,7 @@ ShellRoot {
     shellValues({ "font.base-size": "12", "spacing.scale": "0.5" })
     if (spacer.span !== 3) return fail("size 6 at spacing scale 0.5 should be 3, got " + spacer.span)
 
-    // The opt-out: a bar that does not scale with text leaves the spacer alone.
+    // The opt-out: [spacing] scale-with-font = false leaves the spacer alone.
     shellValues({ "font.base-size": "20", "spacing.scale-with-font": "false" })
     if (spacer.span !== 6) return fail("scale-with-font off should keep 6, got " + spacer.span)
 
@@ -110,6 +111,10 @@ ShellRoot {
 QML
 
 output=$(timeout 15 env \
+  HOME="$test_tmp/home" \
+  XDG_CONFIG_HOME="$test_tmp/home/.config" \
+  XDG_CACHE_HOME="$test_tmp/home/.cache" \
+  XDG_STATE_HOME="$test_tmp/home/.local/state" \
   QML2_IMPORT_PATH="$ROOT/shell${QML2_IMPORT_PATH:+:$QML2_IMPORT_PATH}" \
   QML_IMPORT_PATH="$ROOT/shell${QML_IMPORT_PATH:+:$QML_IMPORT_PATH}" \
   quickshell -p "$test_tmp" --no-color 2>&1) || {
