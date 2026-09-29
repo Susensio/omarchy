@@ -144,15 +144,9 @@ if [[ -e $target || -L $target ]]; then
 fi
 
 mv "$stage" "$target"
-
-# The rename is the point of no return: record the plugin before the best-effort
-# shell rescan and the optional enable, so a later failure cannot leave an
-# installed clone unrecorded.
 omarchy-hook plugin-added "$id" "$url"
 echo "Added $id into $target"
 
-# Best-effort: a shell that is not running must not turn a completed add into a
-# reported failure.
 omarchy-shell -q shell rescanPlugins >/dev/null
 
 if [[ -z $enable_after ]]; then

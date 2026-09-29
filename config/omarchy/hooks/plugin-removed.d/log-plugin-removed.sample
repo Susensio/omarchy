@@ -1,9 +1,4 @@
 #!/bin/bash
 
-# This hook is called after a plugin is deleted or moved aside: the plugin id is
-# in $1. It runs before the shell rescans, so the removal is recorded even if
-# that rescan finds no shell.
-# To put it into use, remove .sample from this file name.
-
-# Example: keep a log of every plugin removal.
+# Rename without .sample to enable; $1 is the removed id.
 # printf '%s\n' "$1" >>"$HOME/.local/state/omarchy/plugin-removals.log"
