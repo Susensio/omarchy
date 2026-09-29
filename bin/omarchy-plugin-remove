@@ -114,7 +114,12 @@ else
   echo "Removed $id. Backup at: $backup"
 fi
 
-omarchy-shell shell rescanPlugins >/dev/null
+# The delete or move above is the point of no return: record the removal before
+# the best-effort shell rescan, so a rescan that finds no shell cannot report
+# failure after the plugin is already gone.
+omarchy-hook plugin-removed "$id"
+
+omarchy-shell -q shell rescanPlugins >/dev/null
 
 if [[ -n $cloned_from && $was_enabled == "true" ]]; then
   echo "Restored $cloned_from."

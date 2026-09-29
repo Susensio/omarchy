@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# This hook is called after a plugin's files are installed: the plugin id is in
+# $1 and the git URL it was cloned from is in $2. It runs once the clone is in
+# place, before the shell rescans and before the plugin is optionally enabled,
+# so the install is recorded even if those later steps fail.
+# To put it into use, remove .sample from this file name.
+
+# Example: keep a log of every plugin install.
+# printf '%s from %s\n' "$1" "$2" >>"$HOME/.local/state/omarchy/plugin-additions.log"
