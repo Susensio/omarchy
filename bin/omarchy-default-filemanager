@@ -57,4 +57,37 @@ fi
 
 xdg-mime default "$desktop_id" inode/directory || exit 1
 
+dbus_services_dir="${XDG_DATA_HOME:-$HOME/.local/share}/dbus-1/services"
+target_service="$dbus_services_dir/org.freedesktop.FileManager1.service"
+mkdir -p "$dbus_services_dir"
+
+case "$filemanager" in
+nautilus)
+  rm -f "$target_service"
+  ;;
+dolphin)
+  src=$(ls /usr/share/dbus-1/services/*dolphin*.FileManager1.service 2>/dev/null | head -n 1)
+  [[ -n "$src" && -f "$src" ]] && cp "$src" "$target_service"
+  ;;
+thunar)
+  src=$(ls /usr/share/dbus-1/services/*[Tt]hunar*.FileManager1.service 2>/dev/null | head -n 1)
+  [[ -n "$src" && -f "$src" ]] && cp "$src" "$target_service"
+  ;;
+nemo)
+  src=$(ls /usr/share/dbus-1/services/*[Nn]emo*.FileManager1.service 2>/dev/null | head -n 1)
+  [[ -n "$src" && -f "$src" ]] && cp "$src" "$target_service"
+  ;;
+pcmanfm)
+  src=$(ls /usr/share/dbus-1/services/*pcmanfm*.FileManager1.service 2>/dev/null | head -n 1)
+  if [[ -n "$src" && -f "$src" ]]; then
+    cp "$src" "$target_service"
+  else
+    rm -f "$target_service"
+  fi
+  ;;
+esac
+
+systemctl --user reload dbus-broker 2>/dev/null || systemctl --user reload dbus 2>/dev/null || true
+
 omarchy-notification-send -g $glyph "$name is now the default file manager"
+
