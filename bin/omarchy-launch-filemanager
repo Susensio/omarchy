@@ -33,11 +33,16 @@ for dir in "${desktop_dirs[@]}"; do
   if [[ -f "$dir/$default_fm" ]]; then
     raw_exec=$(sed -n 's/^Exec=//p' "$dir/$default_fm" 2>/dev/null | head -1)
     if [[ -n $raw_exec ]]; then
-      clean_exec=$(echo "$raw_exec" | sed -E 's/%[a-zA-Z%]//g')
-      readarray -t -d '' fm_cmd < <(printf '%s' "$clean_exec" | xargs -n1 printf '%s\0' 2>/dev/null)
-      if ((${#fm_cmd[@]} == 0)); then
-        read -ra fm_cmd <<<"$clean_exec"
-      fi
+      readarray -t -d '' fm_cmd < <(python3 -c '
+import sys, re, shlex
+raw = sys.argv[1]
+cleaned = re.sub(r"(?<!%)%[fFuUdDnNickv]", "", raw).replace("%%", "%")
+lexer = shlex.shlex(cleaned, posix=True)
+lexer.whitespace_split = True
+lexer.commenters = ""
+for tok in lexer:
+    sys.stdout.buffer.write(tok.encode("utf-8") + b"\0")
+' "$raw_exec" 2>/dev/null)
       if ((${#fm_cmd[@]} > 0)); then
         break
       fi
