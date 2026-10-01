@@ -33,8 +33,8 @@ for dir in "${desktop_dirs[@]}"; do
   if [[ -f "$dir/$default_fm" ]]; then
     raw_exec=$(sed -n 's/^Exec=//p' "$dir/$default_fm" 2>/dev/null | head -1)
     if [[ -n $raw_exec ]]; then
-      clean_exec=$(echo "$raw_exec" | sed 's/%[fFuUdDnNickv%]//g')
-      eval "fm_cmd=($clean_exec)"
+      clean_exec=$(echo "$raw_exec" | sed -E 's/%[a-zA-Z%]//g')
+      read -ra fm_cmd <<<"$clean_exec"
       if ((${#fm_cmd[@]} > 0)); then
         break
       fi
