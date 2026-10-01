@@ -8,10 +8,46 @@ if [[ -z $default_fm ]]; then
   default_fm="org.gnome.Nautilus.desktop"
 fi
 
-fm_exec=$(sed -n 's/^Exec=\([^ ]*\).*/\1/p' {~/.local,~/.nix-profile,/usr}/share/applications/$default_fm 2>/dev/null | head -1)
+desktop_dirs=()
+if [[ -n ${XDG_DATA_HOME:-} ]]; then
+  desktop_dirs+=("$XDG_DATA_HOME/applications")
+else
+  desktop_dirs+=("$HOME/.local/share/applications")
+fi
+
+if [[ -d "$HOME/.nix-profile/share/applications" ]]; then
+  desktop_dirs+=("$HOME/.nix-profile/share/applications")
+fi
+
+if [[ -n ${XDG_DATA_DIRS:-} ]]; then
+  IFS=: read -ra xdg_dirs <<<"$XDG_DATA_DIRS"
+  for dir in "${xdg_dirs[@]}"; do
+    desktop_dirs+=("$dir/applications")
+  done
+else
+  desktop_dirs+=("/usr/local/share/applications" "/usr/share/applications")
+fi
+
+fm_exec=""
+for dir in "${desktop_dirs[@]}"; do
+  if [[ -f "$dir/$default_fm" ]]; then
+    fm_exec=$(sed -n 's/^Exec=\([^ ]*\).*/\1/p' "$dir/$default_fm" 2>/dev/null | head -1)
+    if [[ -n $fm_exec ]]; then
+      break
+    fi
+  fi
+done
 
 if [[ -z $fm_exec ]]; then
-  fm_exec="nautilus"
+  case "$default_fm" in
+  *nautilus*) fm_exec="nautilus" ;;
+  *dolphin*) fm_exec="dolphin" ;;
+  *thunar*) fm_exec="thunar" ;;
+  *nemo*) fm_exec="nemo" ;;
+  *pcmanfm*) fm_exec="pcmanfm" ;;
+  *.desktop) fm_exec="${default_fm%.desktop}" ;;
+  *) fm_exec="${default_fm:-nautilus}" ;;
+  esac
 fi
 
 target_dir="${1:-$HOME}"
