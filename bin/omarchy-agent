@@ -110,6 +110,11 @@ hermes)
     command=(hermes --yolo)
   fi
   ;;
+muse)
+  # --approval-mode never skips the tool prompts but keeps Muse's own sandbox.
+  command=(muse --approval-mode never)
+  [[ -n ${prompt:-} ]] && command+=(-- "$prompt")
+  ;;
 omp)
   command=(omp --auto-approve)
   [[ -n ${prompt:-} ]] && command+=(-- "$prompt")
@@ -130,6 +135,18 @@ pi)
   exit 1
   ;;
 esac
+
+# Claude and Codex start as the active subscription account, the same as the
+# shell functions in default/bash/fns/agent-accounts. The home travels in the
+# command itself, since a terminal launched through uwsm doesn't inherit this
+# process's environment.
+if [[ $agent == "claude" && -z ${CLAUDE_CONFIG_DIR:-} ]]; then
+  home=$(omarchy-agent-account-home claude)
+  [[ -n $home ]] && command=(env "CLAUDE_CONFIG_DIR=$home" "${command[@]}")
+elif [[ $agent == "codex" && -z ${CODEX_HOME:-} ]]; then
+  home=$(omarchy-agent-account-home codex)
+  [[ -n $home ]] && command=(env "CODEX_HOME=$home" "${command[@]}")
+fi
 
 if [[ $inline == "true" ]]; then
   exec "${command[@]}"
