@@ -34,7 +34,10 @@ for dir in "${desktop_dirs[@]}"; do
     raw_exec=$(sed -n 's/^Exec=//p' "$dir/$default_fm" 2>/dev/null | head -1)
     if [[ -n $raw_exec ]]; then
       clean_exec=$(echo "$raw_exec" | sed -E 's/%[a-zA-Z%]//g')
-      read -ra fm_cmd <<<"$clean_exec"
+      readarray -t -d '' fm_cmd < <(printf '%s' "$clean_exec" | xargs -n1 printf '%s\0' 2>/dev/null)
+      if ((${#fm_cmd[@]} == 0)); then
+        read -ra fm_cmd <<<"$clean_exec"
+      fi
       if ((${#fm_cmd[@]} > 0)); then
         break
       fi
