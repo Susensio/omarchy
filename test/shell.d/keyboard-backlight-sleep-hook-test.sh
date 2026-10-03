@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# The keyboard-backlight system-sleep hook turns the backlight off before
+# The keyboard-backlight system-sleep hook turns an ASUS backlight off before
 # hibernation and must turn it back on after resume, through the same
 # omarchy-brightness-keyboard off/restore the lock screen uses. Its migration
 # must refresh only an unmodified copy of the previous hook.
@@ -24,12 +24,21 @@ echo "$*" >>"${CALLS:?}"
 STUB
 chmod +x "$stub_bin/omarchy-brightness-keyboard"
 
+# Run a copy pointed at a fake LED class, so the shipped hook keeps its fixed path.
+leds="$test_dir/leds"
+hook_copy="$test_dir/keyboard-backlight"
+mkdir -p "$leds/asus::kbd_backlight"
+sed "s|/sys/class/leds/|$leds/|" "$hook" >"$hook_copy"
+
 run_hook() {
   : >"$calls"
-  CALLS="$calls" SYSTEMD_SLEEP_ACTION="$3" PATH="$stub_bin:$PATH" bash "$hook" "$1" "$2"
+  CALLS="$calls" SYSTEMD_SLEEP_ACTION="$3" PATH="$stub_bin:$PATH" bash "$hook_copy" "$1" "$2" ||
+    fail "hook exits cleanly for $1 $2 ${3:-}"
   paste -sd, "$calls"
 }
 
+[[ $(grep -Fc '/sys/class/leds/' "$hook") == 1 && $(grep -Fc "$leds/" "$hook_copy") == 1 ]] ||
+  fail "hook copy points at the fake LED class"
 [[ $(run_hook pre suspend-then-hibernate hibernate) == "off" ]] ||
   fail "hook turns the backlight off before the hibernate phase"
 [[ $(run_hook post suspend-then-hibernate hibernate) == "restore" ]] ||
@@ -41,6 +50,19 @@ for action in suspend suspend-after-failed-hibernate; do
     fail "hook leaves the backlight alone for $action"
 done
 pass "hook pairs off before hibernation with restore after it"
+
+# Only the ASUS controller hangs S4, so other keyboards, and machines with none, are left alone.
+rm -rf "$leds"/*
+mkdir -p "$leds/dell::kbd_backlight"
+[[ -z $(run_hook pre hibernate hibernate) && -z $(run_hook post hibernate hibernate) ]] ||
+  fail "hook leaves a non-ASUS keyboard backlight alone"
+rm -rf "$leds"/*
+[[ -z $(run_hook pre hibernate hibernate) && -z $(run_hook post hibernate hibernate) ]] ||
+  fail "hook does nothing without a keyboard backlight"
+mkdir -p "$leds/asus:rgb:kbd_backlight"
+[[ $(run_hook pre hibernate hibernate) == "off" ]] ||
+  fail "hook recognises every ASUS keyboard LED name"
+pass "hook acts only on an ASUS keyboard backlight"
 
 # The migration replaces only an unmodified copy of the previous hook.
 sleep_dir="$test_dir/system-sleep"

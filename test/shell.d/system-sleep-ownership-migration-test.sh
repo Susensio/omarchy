@@ -683,8 +683,12 @@ grep -Fq '"mode": "Integrated"' "$hook_config" ||
 [[ ! -e $hook_marker ]] || fail "force-igpu leaves stale restore intent after compound hibernation"
 pass "force-igpu handles both phases of suspend-then-hibernate"
 
-keyboard_hook_copy="$ROOT/default/systemd/system-sleep/keyboard-backlight"
+keyboard_hook_copy="$test_tmp/keyboard-backlight-hook"
 keyboard_calls="$test_tmp/keyboard-backlight-calls"
+keyboard_led_dir="$test_tmp/leds"
+mkdir -p "$keyboard_led_dir/asus::kbd_backlight"
+sed "s|/sys/class/leds/|$keyboard_led_dir/|" \
+  "$ROOT/default/systemd/system-sleep/keyboard-backlight" >"$keyboard_hook_copy"
 cat >"$stub_bin/omarchy-brightness-keyboard" <<'SH'
 #!/bin/bash
 printf '%s\n' "$*" >>"$KEYBOARD_CALLS"
