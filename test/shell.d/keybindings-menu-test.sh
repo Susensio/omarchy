@@ -292,6 +292,36 @@ mode_rows_follow_entry "SUPER SHIFT + P" 1 "$rendered" &&
   fail "a mode is named the way the row of the chord entering it is" "$rendered"
 pass "a mode is named the way the row of the chord entering it is"
 
+# A mode entered from inside another names the whole sequence, and a keycode
+# reads as its key in both the entry chord and the binding's own.
+stub_hyprctl <<BINDS
+$(submap_bind 64 "code:33" "Window mode" window)
+$(mode_bind 0 window "code:43" "Shrink width")
+$(printf 'bind\n\tmodmask: 0\n\tsubmap: window\n\tkey: R\n\tkeycode: 0\n\tcatchall: false\n\tdescription: Resize mode\n\tdispatcher: submap\n\targ: resize\n')
+$(mode_bind 0 resize "L" "Grow width")
+BINDS
+
+rendered=$(keybindings)
+mode_rows_follow_entry "SUPER + P" 3 "$rendered" &&
+  grep -q '^SUPER + P > H  *→ Shrink width' <<<"$rendered" &&
+  grep -q '^SUPER + P > R > L  *→ Grow width' <<<"$rendered" ||
+  fail "a mode inside a mode is named by every chord that leads to it" "$rendered"
+pass "a mode inside a mode is named by every chord that leads to it"
+
+# An action Omarchy pairs up keeps a binding inside a mode on its own row, since
+# its chord is not an alternative to the global one.
+stub_hyprctl <<BINDS
+$(exec_bind 64 "SUPER + W" "Close window" "true")
+$(printf 'bind\n\tmodmask: 0\n\tsubmap: window\n\tkey: Q\n\tkeycode: 0\n\tcatchall: false\n\tdescription: Close window\n\tdispatcher: exec\n\targ: true\n')
+$(submap_bind 64 "P" "Window mode" window)
+BINDS
+
+rendered=$(keybindings)
+grep -q '^SUPER + W  *→ Close window' <<<"$rendered" &&
+  mode_rows_follow_entry "SUPER + P" 1 "$rendered" ||
+  fail "a binding inside a mode never shares a row with a global chord" "$rendered"
+pass "a binding inside a mode never shares a row with a global chord"
+
 # A binding whose description Omarchy ranks on its own still stays with its mode.
 stub_hyprctl <<BINDS
 $(lua_bind 64 "SUPER + F" "Full screen")

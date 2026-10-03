@@ -343,14 +343,22 @@ dynamic_bindings() {
       # A submap binding only fires inside its mode, so lead with the chord that
       # enters the mode (or its name) rather than listing it as a global shortcut.
       # Only binds Hyprland reports count, so an unbound chord names nothing.
+      function named(mode, depth) {
+        if (!(mode in entry)) return mode
+        if (entry_scope[mode] == "" || depth > 8) return entry[mode]
+        return named(entry_scope[mode], depth + 1) " > " entry[mode]
+      }
       {
-        enters[NR] = $1; submap[NR] = $2; modifiers[NR] = $3; key[NR] = $4; rest[NR] = $5
-        if ($1 != "" && !($1 in entry)) entry[$1] = ($3 != "" ? $3 " + " : "") $4
+        submap[NR] = $2; modifiers[NR] = $3; key[NR] = $4; rest[NR] = $5
+        if ($1 != "" && !($1 in entry)) {
+          entry[$1] = ($3 != "" ? $3 " + " : "") $4
+          entry_scope[$1] = $2
+        }
       }
       END {
         for (i = 1; i <= NR; i++) {
           if (submap[i] != "") {
-            mode = submap[i] in entry ? entry[submap[i]] : submap[i]
+            mode = named(submap[i], 0)
             if (modifiers[i] != "") modifiers[i] = mode " > " modifiers[i]
             else key[i] = mode " > " key[i]
           }
@@ -438,7 +446,10 @@ BEGIN {
     # since a label is only what a chord is called; an unresolved dispatcher
     # says nothing at all, so it never counts as agreement.
     if (action != "") {
-        action_key = action SUBSEP dispatcher SUBSEP arg;
+        # A chord inside a mode only shares a row with another in the same mode.
+        mode = key_combo;
+        if (!sub(/ > [^>]*$/, "", mode)) mode = "";
+        action_key = action SUBSEP dispatcher SUBSEP arg SUBSEP mode;
         together = "";
 
         if (action in shares_a_row && dispatcher != "" && action_key in leads) {
@@ -537,13 +548,13 @@ prioritize_entries() {
     sub(/ *→.*/, "", chord)
     mode = ""
     if (split(chord, parts, " > ") > 1) mode = parts[1]
-    else { entry_row[chord] = line; entry_prio[chord] = prio }
+    else { entry_row[chord] = $1; entry_prio[chord] = prio }
 
-    rows[NR] = $0; prios[NR] = prio; modes[NR] = mode; lines[NR] = line
+    rows[NR] = $0; prios[NR] = prio; modes[NR] = mode; texts[NR] = $1
   }
   END {
     for (i = 1; i <= NR; i++) {
-      key = lines[i]
+      key = texts[i]
       if (modes[i] != "" && modes[i] in entry_row) {
         key = entry_row[modes[i]]
         prios[i] = entry_prio[modes[i]]
