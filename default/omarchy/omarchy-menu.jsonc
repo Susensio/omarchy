@@ -175,6 +175,7 @@
   "setup.default.editor.emacs": {"icon":" ","label":"Emacs","checked":"[[ \"$(omarchy-default-editor)\" == \"emacs\" ]]","action":"omarchy-default-editor emacs"},
   "setup.default.filemanager": {"icon":"","label":"File Manager","title":"Default File Manager"},
   "setup.default.filemanager.nautilus": {"icon":"","label":"Nautilus (Files)","checked":"[[ \"$(omarchy-default-filemanager)\" == \"nautilus\" ]]","action":"omarchy-default-filemanager nautilus"},
+  "setup.default.filemanager.flea": {"icon":"","label":"Flea","checked":"[[ \"$(omarchy-default-filemanager)\" == \"flea\" ]]","action":"omarchy-default-filemanager flea"},
   "setup.default.filemanager.dolphin": {"icon":"","label":"Dolphin","checked":"[[ \"$(omarchy-default-filemanager)\" == \"dolphin\" ]]","action":"omarchy-default-filemanager dolphin"},
   "setup.default.filemanager.thunar": {"icon":"","label":"Thunar","checked":"[[ \"$(omarchy-default-filemanager)\" == \"thunar\" ]]","action":"omarchy-default-filemanager thunar"},
   "setup.default.filemanager.nemo": {"icon":"","label":"Nemo","checked":"[[ \"$(omarchy-default-filemanager)\" == \"nemo\" ]]","action":"omarchy-default-filemanager nemo"},

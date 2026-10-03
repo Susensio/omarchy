@@ -37,6 +37,7 @@ cat >"$mock_bin/pacman" <<'SH'
 case $2 in
 nautilus) echo "$OMARCHY_TEST_SYSTEM_SERVICES/org.freedesktop.FileManager1.service" ;;
 thunar) echo "$OMARCHY_TEST_SYSTEM_SERVICES/org.xfce.Thunar.FileManager1.service" ;;
+flea) echo "$OMARCHY_TEST_SYSTEM_SERVICES/com.thisisgm.flea.FileManager1.service" ;;
 esac
 SH
 
@@ -45,7 +46,7 @@ cat >"$mock_bin/omarchy-cmd-terminal-cwd" <<'SH'
 echo "/tmp/a dir"
 SH
 
-for command in setsid nautilus thunar nemo busctl omarchy-notification-send; do
+for command in setsid nautilus thunar flea nemo busctl omarchy-notification-send; do
   printf '#!/bin/bash\n[[ ${0##*/} == "setsid" ]] && exec "$@"\nexit 0\n' >"$mock_bin/$command"
 done
 chmod +x "$mock_bin"/*
@@ -56,6 +57,8 @@ printf '[D-BUS Service]\nName=org.freedesktop.FileManager1\nExec=/usr/bin/nautil
   >"$system_services/org.freedesktop.FileManager1.service"
 printf '[D-BUS Service]\nName=org.freedesktop.FileManager1\nExec=/usr/bin/Thunar --daemon\n' \
   >"$system_services/org.xfce.Thunar.FileManager1.service"
+printf '[D-BUS Service]\nName=org.freedesktop.FileManager1\nExec=/usr/lib/flea/flea-filemanager1\n' \
+  >"$system_services/com.thisisgm.flea.FileManager1.service"
 
 launched() {
   local expected
@@ -90,6 +93,15 @@ pass "choosing Thunar claims FileManager1 for Thunar"
 omarchy-default-filemanager nautilus
 [[ ! -e $user_service ]] || fail "choosing Nautilus removes the registration Omarchy wrote"
 pass "choosing Nautilus hands FileManager1 back to the system registration"
+
+omarchy-default-filemanager flea
+[[ $(omarchy-default-filemanager) == "flea" ]] || fail "choosing Flea makes it the inode/directory default"
+omarchy-launch-filemanager "/tmp/a dir"
+launched com.thisisgm.flea.desktop "/tmp/a dir" || fail "the launcher opens Flea at the directory" "$(<"$OMARCHY_TEST_LAUNCH_LOG")"
+grep -qx "Exec=/usr/lib/flea/flea-filemanager1" "$user_service" || fail "choosing Flea runs Flea's own FileManager1 service"
+omarchy-default-filemanager nautilus
+[[ ! -e $user_service ]] || fail "choosing Nautilus after Flea removes the registration Omarchy wrote"
+pass "Flea is a selectable file manager that takes over bindings and FileManager1 without touching Hyprland config"
 
 printf '# Written by another tool\n[D-BUS Service]\nName=org.freedesktop.FileManager1\nExec=/usr/lib/other\n' >"$user_service"
 omarchy-default-filemanager thunar 2>/dev/null

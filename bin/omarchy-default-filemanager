@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # omarchy:summary=Set the default file manager for Omarchy and XDG handlers
-# omarchy:args=[nautilus|dolphin|thunar|nemo|pcmanfm]
+# omarchy:args=[nautilus|flea|dolphin|thunar|nemo|pcmanfm]
 # omarchy:examples=omarchy default filemanager nautilus | omarchy default filemanager dolphin
 
 installing=false
@@ -14,6 +14,7 @@ if (($# == 0)); then
   desktop_id=$(xdg-mime query default inode/directory 2>/dev/null || true)
   case "$desktop_id" in
   org.gnome.Nautilus.desktop | nautilus.desktop) echo "nautilus" ;;
+  com.thisisgm.flea.desktop) echo "flea" ;;
   org.kde.dolphin.desktop | dolphin.desktop) echo "dolphin" ;;
   thunar.desktop) echo "thunar" ;;
   nemo.desktop) echo "nemo" ;;
@@ -31,12 +32,13 @@ fi
 
 case "$1" in
 nautilus) filemanager="nautilus"; package="nautilus"; desktop_id="org.gnome.Nautilus.desktop"; name="Nautilus (Files)"; glyph= ;;
+flea) filemanager="flea"; package="flea"; desktop_id="com.thisisgm.flea.desktop"; name="Flea"; glyph= ;;
 dolphin) filemanager="dolphin"; package="dolphin"; desktop_id="org.kde.dolphin.desktop"; name="Dolphin"; glyph= ;;
 thunar) filemanager="thunar"; package="thunar"; desktop_id="thunar.desktop"; name="Thunar"; glyph= ;;
 nemo) filemanager="nemo"; package="nemo"; desktop_id="nemo.desktop"; name="Nemo"; glyph= ;;
 pcmanfm) filemanager="pcmanfm"; package="pcmanfm"; desktop_id="pcmanfm.desktop"; name="PCManFM"; glyph= ;;
 *)
-  echo "Usage: omarchy-default-filemanager <nautilus|dolphin|thunar|nemo|pcmanfm>"
+  echo "Usage: omarchy-default-filemanager <nautilus|flea|dolphin|thunar|nemo|pcmanfm>"
   exit 1
   ;;
 esac
