@@ -7,12 +7,19 @@
 
 sleep_action=${SYSTEMD_SLEEP_ACTION:-$2}
 
+# brightnessctl saves the level under $XDG_RUNTIME_DIR, or /tmp without one, where any
+# user could plant a symlink for root to write through. Only root can create in /run.
+export XDG_RUNTIME_DIR=/run/omarchy-keyboard-backlight
+
 # omarchy-brightness-keyboard drives the first keyboard LED, so that is the one to check.
 leds=(/sys/class/leds/*kbd_backlight*)
 
 if [[ $sleep_action == "hibernate" && ${leds[0]##*/} == asus* ]]; then
   case $1 in
-    pre) omarchy-brightness-keyboard off >/dev/null 2>&1 ;;
+    pre)
+      mkdir -p -m 0700 "$XDG_RUNTIME_DIR"
+      omarchy-brightness-keyboard off >/dev/null 2>&1
+      ;;
     post) omarchy-brightness-keyboard restore >/dev/null 2>&1 ;;
   esac
 fi

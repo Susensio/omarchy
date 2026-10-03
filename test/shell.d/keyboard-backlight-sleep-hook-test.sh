@@ -21,24 +21,37 @@ mkdir -p "$stub_bin"
 cat >"$stub_bin/omarchy-brightness-keyboard" <<'STUB'
 #!/bin/bash
 echo "$*" >>"${CALLS:?}"
+echo "${XDG_RUNTIME_DIR:-}" >"$CALLS.runtime"
 STUB
 chmod +x "$stub_bin/omarchy-brightness-keyboard"
 
-# Run a copy pointed at a fake LED class, so the shipped hook keeps its fixed path.
+# Run a copy pointed at a fake LED class and state directory, so the shipped hook keeps its fixed paths.
 leds="$test_dir/leds"
+state_dir="$test_dir/run/omarchy-keyboard-backlight"
 hook_copy="$test_dir/keyboard-backlight"
-mkdir -p "$leds/asus::kbd_backlight"
-sed "s|/sys/class/leds/|$leds/|" "$hook" >"$hook_copy"
+mkdir -p "$leds/asus::kbd_backlight" "${state_dir%/*}"
+sed -e "s|/sys/class/leds/|$leds/|" -e "s|=/run/omarchy-keyboard-backlight$|=$state_dir|" "$hook" >"$hook_copy"
 
 run_hook() {
   : >"$calls"
-  CALLS="$calls" SYSTEMD_SLEEP_ACTION="$3" PATH="$stub_bin:$PATH" bash "$hook_copy" "$1" "$2" ||
+  CALLS="$calls" SYSTEMD_SLEEP_ACTION="$3" XDG_RUNTIME_DIR=/tmp PATH="$stub_bin:$PATH" bash "$hook_copy" "$1" "$2" ||
     fail "hook exits cleanly for $1 $2 ${3:-}"
   paste -sd, "$calls"
 }
 
 [[ $(grep -Fc '/sys/class/leds/' "$hook") == 1 && $(grep -Fc "$leds/" "$hook_copy") == 1 ]] ||
   fail "hook copy points at the fake LED class"
+[[ $(grep -Fxc 'export XDG_RUNTIME_DIR=/run/omarchy-keyboard-backlight' "$hook") == 1 && $(grep -Fc "=$state_dir" "$hook_copy") == 1 ]] ||
+  fail "hook copy points at the fake state directory"
+
+# brightnessctl follows a symlink in its save directory, so root's must be one only root can create.
+[[ $(run_hook pre hibernate hibernate) == "off" && $(<"$calls.runtime") == "$state_dir" ]] ||
+  fail "hook saves the level in its own state directory"
+[[ $(stat -c '%a' "$state_dir") == 700 ]] || fail "hook keeps its state directory private"
+[[ $(run_hook post hibernate hibernate) == "restore" && $(<"$calls.runtime") == "$state_dir" ]] ||
+  fail "hook restores the level from its own state directory"
+pass "hook keeps brightnessctl's saved level out of /tmp"
+
 [[ $(run_hook pre suspend-then-hibernate hibernate) == "off" ]] ||
   fail "hook turns the backlight off before the hibernate phase"
 [[ $(run_hook post suspend-then-hibernate hibernate) == "restore" ]] ||

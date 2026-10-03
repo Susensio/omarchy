@@ -687,7 +687,8 @@ keyboard_hook_copy="$test_tmp/keyboard-backlight-hook"
 keyboard_calls="$test_tmp/keyboard-backlight-calls"
 keyboard_led_dir="$test_tmp/leds"
 mkdir -p "$keyboard_led_dir/asus::kbd_backlight"
-sed "s|/sys/class/leds/|$keyboard_led_dir/|" \
+sed -e "s|/sys/class/leds/|$keyboard_led_dir/|" \
+  -e "s|=/run/omarchy-keyboard-backlight$|=$test_tmp/keyboard-backlight-state|" \
   "$ROOT/default/systemd/system-sleep/keyboard-backlight" >"$keyboard_hook_copy"
 cat >"$stub_bin/omarchy-brightness-keyboard" <<'SH'
 #!/bin/bash
