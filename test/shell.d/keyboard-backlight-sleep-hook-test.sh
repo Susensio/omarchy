@@ -87,14 +87,23 @@ mkdir -p "$sleep_dir"
   fail "migration names one literal hook path"
 sed \
   -e "s|hook=/usr/lib/systemd/system-sleep/keyboard-backlight|hook=$installed|" \
-  -e "s|/usr/bin/install -m 0755 -o root -g root|/usr/bin/install -m 0755|" \
+  -e "s|/usr/bin/install -m 0755 -o root -g root|$stub_bin/install -m 0755|" \
   "$migration" >"$migration_copy"
 
 cat >"$stub_bin/sudo" <<'STUB'
 #!/bin/bash
 exec "$@"
 STUB
-chmod +x "$stub_bin/sudo"
+# With INSTALL_FAILS set, install dies part-way through writing its destination.
+cat >"$stub_bin/install" <<'STUB'
+#!/bin/bash
+if [[ -n ${INSTALL_FAILS:-} ]]; then
+  printf '#!/bin/bash\n' >"${@: -1}"
+  exit 1
+fi
+exec /usr/bin/install "$@"
+STUB
+chmod +x "$stub_bin/sudo" "$stub_bin/install"
 
 run_migration() {
   OMARCHY_PATH="$ROOT" PATH="$stub_bin:$PATH" bash -euo pipefail "$migration_copy" >/dev/null
@@ -123,6 +132,15 @@ if [[ $1 == "pre" && $sleep_action == "hibernate" ]]; then
 fi
 PREVIOUS
 chmod 0755 "$installed"
+cp -p "$installed" "$test_dir/previous-hook"
+
+# A copy that fails must leave the stock hook in place for the next run to recognize.
+if INSTALL_FAILS=1 run_migration 2>/dev/null; then
+  fail "migration reports a failed copy"
+fi
+cmp -s "$test_dir/previous-hook" "$installed" || fail "migration leaves the stock hook in place when the copy fails"
+[[ -z $(find "$sleep_dir" -name '.keyboard-backlight.omarchy.*') ]] || fail "migration removes its stage after a failed copy"
+pass "migration keeps a failed copy retryable"
 
 run_migration || fail "migration runs against the previous stock hook"
 cmp -s "$hook" "$installed" || fail "migration installs the current hook over the previous stock copy"
