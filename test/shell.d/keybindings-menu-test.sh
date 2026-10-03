@@ -221,6 +221,18 @@ for action in "${expected_alternatives[@]}"; do
 done
 pass "every action named as having an alternative is bound twice"
 
+# The terminal bind is a Lua function Hyprland reports only as __lua, so picking
+# it from the menu has to run the command the function stands for.
+stub_hyprctl <<BINDS
+$(lua_bind 64 "SUPER + RETURN" "Terminal")
+BINDS
+
+rm -rf "$tmpdir/cache"
+keybindings >/dev/null
+grep -qP '→ Terminal\texec\tomarchy-launch-terminal$' "$tmpdir"/cache/omarchy/keybindings-*.records ||
+  fail "picking the terminal bind from the menu launches a terminal" "$(cat "$tmpdir"/cache/omarchy/keybindings-*.records)"
+pass "picking the terminal bind from the menu launches a terminal"
+
 # A submap binding fires only inside its mode, so its row leads with the chord
 # that enters the mode and sits right under that chord's own row.
 mode_bind() {
