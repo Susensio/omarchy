@@ -313,13 +313,18 @@ pass "a mode inside a mode is named by every chord that leads to it"
 # when Hyprland reports it before the chord that enters from outside.
 stub_hyprctl <<BINDS
 $(submap_bind 0 "ESCAPE" "Back to window mode" window resize)
-$(submap_bind 0 "R" "Resize mode" resize window)
+$(submap_bind 0 "ESCAPE" "Back to resize mode" resize detail)
+$(submap_bind 0 "D" "Detail mode" detail resize)
 $(submap_bind 64 "P" "Window mode" window)
+$(submap_bind 0 "R" "Resize mode" resize window)
+$(mode_bind 0 resize "L" "Grow width")
 BINDS
 
 rendered=$(keybindings)
-mode_rows_follow_entry "SUPER + P" 2 "$rendered" &&
-  grep -q '^SUPER + P > R > ESCAPE  *→ Back to window mode' <<<"$rendered" ||
+mode_rows_follow_entry "SUPER + P" 5 "$rendered" &&
+  grep -q '^SUPER + P > R > ESCAPE  *→ Back to window mode' <<<"$rendered" &&
+  grep -q '^SUPER + P > R > D > ESCAPE  *→ Back to resize mode' <<<"$rendered" &&
+  grep -q '^SUPER + P > R > L  *→ Grow width' <<<"$rendered" ||
   fail "a mode is named by the chord that enters it from outside every mode" "$rendered"
 pass "a mode is named by the chord that enters it from outside every mode"
 
