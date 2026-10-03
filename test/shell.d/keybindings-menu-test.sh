@@ -273,8 +273,9 @@ grep -q '^unbound > ESCAPE  *→ Leave unbound mode' <<<"$rendered" ||
   fail "a mode with no known entry chord is named instead" "$rendered"
 pass "a mode with no known entry chord is named instead"
 
+# A bind that enters a mode, optionally from inside another mode.
 submap_bind() {
-  printf 'bind\n\tmodmask: %s\n\tsubmap: \n\tkey: %s\n\tkeycode: 0\n\tcatchall: false\n\tdescription: %s\n\tdispatcher: submap\n\targ: %s\n' "$1" "$2" "$3" "$4"
+  printf 'bind\n\tmodmask: %s\n\tsubmap: %s\n\tkey: %s\n\tkeycode: 0\n\tcatchall: false\n\tdescription: %s\n\tdispatcher: submap\n\targ: %s\n' "$1" "${5:-}" "$2" "$3" "$4"
 }
 
 # The prefix names the entry chord exactly as that chord's own row does, so a
@@ -297,7 +298,7 @@ pass "a mode is named the way the row of the chord entering it is"
 stub_hyprctl <<BINDS
 $(submap_bind 64 "code:33" "Window mode" window)
 $(mode_bind 0 window "code:43" "Shrink width")
-$(printf 'bind\n\tmodmask: 0\n\tsubmap: window\n\tkey: R\n\tkeycode: 0\n\tcatchall: false\n\tdescription: Resize mode\n\tdispatcher: submap\n\targ: resize\n')
+$(submap_bind 0 "R" "Resize mode" resize window)
 $(mode_bind 0 resize "L" "Grow width")
 BINDS
 
@@ -307,6 +308,20 @@ mode_rows_follow_entry "SUPER + P" 3 "$rendered" &&
   grep -q '^SUPER + P > R > L  *→ Grow width' <<<"$rendered" ||
   fail "a mode inside a mode is named by every chord that leads to it" "$rendered"
 pass "a mode inside a mode is named by every chord that leads to it"
+
+# A chord that comes back to a mode from another one does not name it, even
+# when Hyprland reports it before the chord that enters from outside.
+stub_hyprctl <<BINDS
+$(submap_bind 0 "ESCAPE" "Back to window mode" window resize)
+$(submap_bind 0 "R" "Resize mode" resize window)
+$(submap_bind 64 "P" "Window mode" window)
+BINDS
+
+rendered=$(keybindings)
+mode_rows_follow_entry "SUPER + P" 2 "$rendered" &&
+  grep -q '^SUPER + P > R > ESCAPE  *→ Back to window mode' <<<"$rendered" ||
+  fail "a mode is named by the chord that enters it from outside every mode" "$rendered"
+pass "a mode is named by the chord that enters it from outside every mode"
 
 # An action Omarchy pairs up keeps a binding inside a mode on its own row, since
 # its chord is not an alternative to the global one.

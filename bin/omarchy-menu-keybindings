@@ -343,14 +343,18 @@ dynamic_bindings() {
       # A submap binding only fires inside its mode, so lead with the chord that
       # enters the mode (or its name) rather than listing it as a global shortcut.
       # Only binds Hyprland reports count, so an unbound chord names nothing.
-      function named(mode, depth) {
-        if (!(mode in entry)) return mode
-        if (entry_scope[mode] == "" || depth > 8) return entry[mode]
-        return named(entry_scope[mode], depth + 1) " > " entry[mode]
+      # A chord that enters from outside every mode wins over one that comes back
+      # from another mode, and modes that only enter each other go by their name.
+      function named(mode, depth,    outer) {
+        if (!(mode in entry)) return ""
+        if (entry_scope[mode] == "") return entry[mode]
+        if (depth > 8) return ""
+        outer = named(entry_scope[mode], depth + 1)
+        return outer == "" ? "" : outer " > " entry[mode]
       }
       {
         submap[NR] = $2; modifiers[NR] = $3; key[NR] = $4; rest[NR] = $5
-        if ($1 != "" && !($1 in entry)) {
+        if ($1 != "" && (!($1 in entry) || (entry_scope[$1] != "" && $2 == ""))) {
           entry[$1] = ($3 != "" ? $3 " + " : "") $4
           entry_scope[$1] = $2
         }
@@ -359,6 +363,7 @@ dynamic_bindings() {
         for (i = 1; i <= NR; i++) {
           if (submap[i] != "") {
             mode = named(submap[i], 0)
+            if (mode == "") mode = submap[i]
             if (modifiers[i] != "") modifiers[i] = mode " > " modifiers[i]
             else key[i] = mode " > " key[i]
           }
@@ -541,30 +546,41 @@ prioritize_entries() {
     if (match(line, /Tmux keybindings/)) prio = 100
     if (match(line, /Herdr keybindings/)) prio = 101
 
-    # A binding inside a mode ("SUPER + P > H") takes the rank of the row of
-    # the chord that enters the mode and sorts right after it; every other row
-    # sorts on itself.
-    chord = line
-    sub(/ *→.*/, "", chord)
-    mode = ""
-    if (split(chord, parts, " > ") > 1) mode = parts[1]
-    else { entry_row[chord] = $1; entry_prio[chord] = prio }
+    # print "priority<TAB>record"
+    printf "%d\t%s\n", prio, $0
+  }' |
+  sort -k1,1n -k2,2 |
+  cut -f2- |
+  group_mode_entries
+}
 
-    rows[NR] = $0; prios[NR] = prio; modes[NR] = mode; texts[NR] = $1
+# A binding inside a mode ("SUPER + P > H") follows the row of the chord that
+# enters the mode, in the order the rows were ranked; every other row stays put.
+group_mode_entries() {
+  awk -F '\t' '
+  {
+    rows[NR] = $0
+    chord = $1
+    sub(/ \/ [^→]*→/, " →", chord)
+    sub(/ *→.*/, "", chord)
+    if (split(chord, parts, " > ") > 1) modes[NR] = parts[1]
+    else entry[chord] = NR
   }
   END {
     for (i = 1; i <= NR; i++) {
-      key = texts[i]
-      if (modes[i] != "" && modes[i] in entry_row) {
-        key = entry_row[modes[i]]
-        prios[i] = entry_prio[modes[i]]
+      if (modes[i] != "" && modes[i] in entry) {
+        inside[i] = 1
+        children[entry[modes[i]]] = children[entry[modes[i]]] SUBSEP i
       }
-      # print "priority<TAB>sort key<TAB>in mode<TAB>record"
-      printf "%d\t%s\t%d\t%s\n", prios[i], key, modes[i] != "", rows[i]
     }
-  }' |
-  sort -t $'\t' -k1,1n -k2,2 -k3,3n -k4 |
-  cut -f4-
+
+    for (i = 1; i <= NR; i++) {
+      if (i in inside) continue
+      print rows[i]
+      count = split(substr(children[i], 2), members, SUBSEP)
+      for (k = 1; k <= count; k++) print rows[members[k]]
+    }
+  }'
 }
 
 # Drop repeated records while keeping the order Hyprland reported them in, so
