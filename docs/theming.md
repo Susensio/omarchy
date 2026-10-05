@@ -13,6 +13,8 @@ ship `backgrounds/` (users overlay their own via
 `preview-unlock.png` for the theme switcher, `icons.theme`, `keyboard.rgb`,
 `unlock.png`, and a `light.mode` marker file.
 
+A theme can ship `helix.toml` to replace the generated Helix theme. Where Helix bundles the same palette, make it an overlay on that theme, with `"ui.background" = { }` so the terminal background still shows through: `inherits = "nord"`.
+
 A theme installed from a git repo is held to a much shorter list; see [What an installed theme may not ship](#what-an-installed-theme-may-not-ship).
 
 ## Theme activation flow
