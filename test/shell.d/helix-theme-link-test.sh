@@ -73,3 +73,23 @@ ln -s /some/custom/theme "$link"
 run_theme_set
 [[ $(readlink "$link") == /some/custom/theme ]] || fail "theme change preserves a dangling custom symlink"
 pass "theme change preserves existing user themes and links"
+
+run_helix_link() {
+  HOME="$home" PATH="$test_dir/bin:$ROOT/bin:$PATH" HELIX_INSTALLED="${HELIX_INSTALLED:-1}" \
+    "$ROOT/bin/omarchy-theme-helix-link" "$@" >/dev/null
+}
+
+# The installer has just claimed the path, so it replaces a link the user made.
+ln -sfn /some/custom/theme "$link"
+run_helix_link --replace
+[[ -L $link && $(readlink "$link") == "$target" ]] || fail "the installer replaces an existing Helix link"
+pass "the installer replaces an existing Helix link"
+
+rm -f "$link" "$target"
+run_helix_link --replace
+[[ ! -e $link && ! -L $link ]] || fail "no Helix link is made without a rendered theme"
+pass "no Helix link is made without a rendered theme"
+
+HELIX_INSTALLED=0 run_helix_link --replace
+[[ ! -e $link && ! -L $link ]] || fail "no Helix link is made without Helix installed"
+pass "no Helix link is made without Helix installed"
