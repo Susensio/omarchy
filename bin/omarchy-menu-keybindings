@@ -95,12 +95,19 @@ parse_keycodes() {
       }
       return resolved chord
     }
+    function rename(chord,    parts, separators, count, i, renamed) {
+      count = split(chord, parts, / > | \+ /, separators)
+      renamed = parts[1] in key_name ? key_name[parts[1]] : parts[1]
+      for (i = 2; i <= count; i++) renamed = renamed separators[i - 1] (parts[i] in key_name ? key_name[parts[i]] : parts[i])
+      return renamed
+    }
     {
       if ($1 ~ /(code|mouse):[0-9]/) $1 = resolve($1)
       if ($2 ~ /(code|mouse):[0-9]/) $2 = resolve($2)
-      # Rename a key the platform prints differently, after codes resolve, so
-      # the description, the dispatcher and its argument are left as they are.
-      if ($2 in key_name) $2 = key_name[$2]
+      # Rename every key the platform prints differently, after codes resolve,
+      # in both chord fields; the description and what the bind runs stay as is.
+      $1 = rename($1)
+      $2 = rename($2)
       print
     }
   '
